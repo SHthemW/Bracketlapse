@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".tif", ".tiff"}
 
 
 class BracketlapseError(RuntimeError):
@@ -115,6 +115,37 @@ def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
         default="jpg",
         help="Output image format extension. Default: jpg",
     )
+    parser.add_argument(
+        "--no-video",
+        action="store_true",
+        help="Only create fused frames; do not create a video afterward.",
+    )
+    parser.add_argument(
+        "--fps",
+        type=float,
+        default=30.0,
+        help="Frames per second for the automatic video. Default: 30",
+    )
+    parser.add_argument(
+        "--video-output",
+        type=Path,
+        default=Path("hdr_video") / "hdr_timelapse.mp4",
+        help=(
+            "Automatic video output path. Relative paths are resolved inside "
+            "the processing directory. Default: hdr_video/hdr_timelapse.mp4"
+        ),
+    )
+    parser.add_argument(
+        "--crf",
+        type=int,
+        default=18,
+        help="x264 CRF quality value for the automatic video. Default: 18",
+    )
+    parser.add_argument(
+        "--preset",
+        default="slow",
+        help="x264 preset for the automatic video. Default: slow",
+    )
 
 
 def add_video_arguments(parser: argparse.ArgumentParser) -> None:
@@ -179,6 +210,8 @@ def fuse_brackets(args: argparse.Namespace) -> None:
         raise BracketlapseError(f"No JPG files matched {args.pattern!r} in {directory}")
     if args.group_size < 2:
         raise BracketlapseError("--group-size must be at least 2")
+    if args.fps <= 0:
+        raise BracketlapseError("--fps must be greater than zero")
     if len(files) % args.group_size != 0:
         raise BracketlapseError(
             f"Found {len(files)} files, which is not divisible by group size {args.group_size}."
@@ -211,23 +244,67 @@ def fuse_brackets(args: argparse.Namespace) -> None:
         else:
             run_command([enfuse, "-o", str(output), *map(str, group)])
 
+    if not args.no_video:
+        video_output = resolve_inside(directory, args.video_output)
+        print("Creating video from fused frames.")
+        build_video_from_directory(
+            directory=output_dir,
+            output=video_output,
+            fps=args.fps,
+            pattern=f"*.{args.ext}",
+            sort_mode="name",
+            crf=args.crf,
+            preset=args.preset,
+            overwrite=args.overwrite,
+            skip_existing=True,
+        )
+
     print("Done.")
 
 
 def build_video(args: argparse.Namespace) -> None:
     directory = resolve_processing_directory(args.directory)
     output = resolve_inside(directory, args.output)
+    build_video_from_directory(
+        directory=directory,
+        output=output,
+        fps=args.fps,
+        pattern=args.pattern,
+        sort_mode=args.sort,
+        crf=args.crf,
+        preset=args.preset,
+        overwrite=args.overwrite,
+        skip_existing=False,
+    )
+
+    print("Done.")
+
+
+def build_video_from_directory(
+    directory: Path,
+    output: Path,
+    fps: float,
+    pattern: str,
+    sort_mode: str,
+    crf: int,
+    preset: str,
+    overwrite: bool,
+    skip_existing: bool,
+) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    if output.exists() and not args.overwrite:
+    if output.exists() and not overwrite:
+        if skip_existing:
+            print(f"Skip existing video: {output}")
+            return
         raise BracketlapseError(f"Output already exists: {output}. Use --overwrite to replace it.")
-    if args.fps <= 0:
+    if fps <= 0:
         raise BracketlapseError("--fps must be greater than zero")
 
     ffmpeg = require_tool("ffmpeg")
-    files = find_images(directory, args.pattern, args.sort)
+    files = find_images(directory, pattern, sort_mode)
     if not files:
-        raise BracketlapseError(f"No JPG files matched {args.pattern!r} in {directory}")
+        raise BracketlapseError(f"No JPG files matched {pattern!r} in {directory}")
 
     print(f"Input directory: {directory}")
     print(f"Found {len(files)} JPG frames.")
@@ -235,11 +312,11 @@ def build_video(args: argparse.Namespace) -> None:
 
     with tempfile.TemporaryDirectory(prefix="bracketlapse_ffmpeg_") as tmp:
         concat_file = Path(tmp) / "frames.ffconcat"
-        write_ffconcat(concat_file, files, 1.0 / args.fps)
+        write_ffconcat(concat_file, files, 1.0 / fps)
 
         command = [
             ffmpeg,
-            "-y" if args.overwrite else "-n",
+            "-y" if overwrite else "-n",
             "-f",
             "concat",
             "-safe",
@@ -247,20 +324,18 @@ def build_video(args: argparse.Namespace) -> None:
             "-i",
             str(concat_file),
             "-r",
-            format_fps(args.fps),
+            format_fps(fps),
             "-c:v",
             "libx264",
             "-crf",
-            str(args.crf),
+            str(crf),
             "-preset",
-            args.preset,
+            preset,
             "-pix_fmt",
             "yuv420p",
             str(output),
         ]
         run_command(command)
-
-    print("Done.")
 
 
 def resolve_processing_directory(value: Path | None) -> Path:

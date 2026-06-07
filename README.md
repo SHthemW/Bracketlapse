@@ -4,7 +4,7 @@ Bracketlapse is a cross-platform command line tool for bracketed timelapse work:
 
 - Fuse every 3 JPG files into one exposure-fused HDR-looking frame with Hugin `enfuse`.
 - Optionally align each bracket group with Hugin `align_image_stack`.
-- Create an MP4 timelapse from JPG frames with `ffmpeg`.
+- Automatically create an MP4 timelapse from the fused frames with `ffmpeg`.
 
 It runs on Windows and macOS with Python 3.10+.
 
@@ -33,7 +33,7 @@ python3 -m pip install -e .
 
 ## Usage
 
-Fuse bracketed JPG files in a directory:
+Fuse bracketed JPG files in a directory, then automatically create a video:
 
 ```bash
 bracketlapse "E:\Medias\Images\example"
@@ -52,7 +52,8 @@ DSC_0480.JPG, DSC_0481.JPG, DSC_0482.JPG -> hdr_00001.jpg
 DSC_0483.JPG, DSC_0484.JPG, DSC_0485.JPG -> hdr_00002.jpg
 ```
 
-The default output directory is `hdr_enfuse` inside the processing directory.
+The default fused-frame output directory is `hdr_enfuse` inside the processing directory.
+The default video output is `hdr_video/hdr_timelapse.mp4` inside the processing directory.
 
 Use alignment when the camera moved between the bracketed shots:
 
@@ -66,7 +67,19 @@ Test only the first few groups:
 bracketlapse "E:\Medias\Images\example" --limit 3 --overwrite
 ```
 
-Create a 30 fps MP4 from JPG frames:
+Only create fused frames and skip the automatic video:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --no-video
+```
+
+Choose video settings for the automatic video:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --fps 30 --video-output hdr_video\hdr_timelapse.mp4
+```
+
+Create a video manually from an existing JPG frame directory:
 
 ```bash
 bracketlapse video "E:\Medias\Images\example\hdr_enfuse" --fps 30 --output hdr_timelapse.mp4
@@ -92,3 +105,6 @@ Important options:
 - `--overwrite`: replace existing output.
 - `--align`: align bracket groups before exposure fusion.
 - `--ext jpg|tif`: choose fused frame extension.
+- `--no-video`: skip automatic video creation after fusion.
+- `--fps`: video frames per second.
+- `--video-output PATH`: automatic video output path.
