@@ -35,8 +35,6 @@ python3 -m pip install -e .
 
 ## Usage
 
-Use the `bracketlapse` command for both HDR fusion and video generation. No separate batch script is required.
-
 Fuse bracketed JPG files in a directory, then automatically create a video:
 
 ```bash

@@ -35,8 +35,6 @@ python3 -m pip install -e .
 
 ## 使用方法
 
-HDR 合成和视频生成都通过 `bracketlapse` 命令完成，不再需要单独的批处理脚本。
-
 处理一个包围曝光 JPG 目录，并在完成后自动生成视频：
 
 ```bash
