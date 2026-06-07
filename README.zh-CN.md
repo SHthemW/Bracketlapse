@@ -59,12 +59,34 @@ bracketlapse "E:\Medias\Images\example"
 bracketlapse
 ```
 
+如果在一个包含图片子文件夹的目录中运行 Bracketlapse（这很常见，因为相机的存储格式通常对单文件夹存放的最大照片数量有严格限制），程序会先询问是否合并处理多个子文件夹。合并模式下，用户选择的子文件夹作为输入，`hdr_enfuse` 和 `hdr_video` 仍然创建在当前工作目录下。
+
+合并所有检测到的图片子文件夹：
+
+```bash
+bracketlapse --merge-subdirs
+```
+
+合并指定子文件夹：
+
+```bash
+bracketlapse --merge-dirs part1 part2 part3
+```
+
+忽略子文件夹，只处理当前选择的目录：
+
+```bash
+bracketlapse --no-merge-subdirs
+```
+
 默认按文件名排序，并且每 3 张 JPG 作为一组：
 
 ```text
 DSC_0480.JPG, DSC_0481.JPG, DSC_0482.JPG -> hdr_00001.jpg
 DSC_0483.JPG, DSC_0484.JPG, DSC_0485.JPG -> hdr_00002.jpg
 ```
+
+如果输入文件总数不能被分组数量整除，Bracketlapse 会丢弃最后剩余的文件，打印 warning，并继续处理完整分组。
 
 默认 HDR 图片输出目录是处理目录下的 `hdr_enfuse`。
 默认视频输出路径是处理目录下的 `hdr_video/hdr_timelapse.mp4`。
@@ -116,6 +138,9 @@ bracketlapse video --help
 
 - `--sort name|time`：按文件名或修改时间排序。
 - `--output PATH`：自定义 HDR 图片输出目录。
+- `--merge-subdirs`：合并所有检测到的图片子文件夹。
+- `--merge-dirs DIR...`：合并指定子文件夹。
+- `--no-merge-subdirs`：忽略子文件夹，只处理当前选择的目录。
 - `--overwrite`：覆盖已有输出。
 - `--align`：合成前先对齐每组包围曝光照片。
 - `--ext jpg|tif`：选择 HDR 图片输出扩展名。

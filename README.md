@@ -59,12 +59,34 @@ If you do not pass a directory, Bracketlapse asks for one:
 bracketlapse
 ```
 
+If you run Bracketlapse from a directory that contains image subdirectories, which is common because camera storage formats usually enforce strict limits on the maximum number of photos in a single folder, it asks whether to merge multiple subdirectories. In merge mode, the selected subdirectories are used as input, while `hdr_enfuse` and `hdr_video` are still created in the current working directory.
+
+Merge all detected image subdirectories:
+
+```bash
+bracketlapse --merge-subdirs
+```
+
+Merge specific subdirectories:
+
+```bash
+bracketlapse --merge-dirs part1 part2 part3
+```
+
+Ignore subdirectories and process only the chosen directory:
+
+```bash
+bracketlapse --no-merge-subdirs
+```
+
 By default it sorts files by name and processes every 3 JPG files as one group:
 
 ```text
 DSC_0480.JPG, DSC_0481.JPG, DSC_0482.JPG -> hdr_00001.jpg
 DSC_0483.JPG, DSC_0484.JPG, DSC_0485.JPG -> hdr_00002.jpg
 ```
+
+If the total number of input files is not divisible by the group size, Bracketlapse drops the final leftover file(s), prints a warning, and continues processing the complete groups.
 
 The default fused-frame output directory is `hdr_enfuse` inside the processing directory.
 The default video output is `hdr_video/hdr_timelapse.mp4` inside the processing directory.
@@ -116,6 +138,9 @@ Important options:
 
 - `--sort name|time`: choose filename sorting or modified-time sorting.
 - `--output PATH`: write output to a custom directory or file.
+- `--merge-subdirs`: merge all detected image subdirectories.
+- `--merge-dirs DIR...`: merge specific subdirectories.
+- `--no-merge-subdirs`: ignore subdirectories and process only the chosen directory.
 - `--overwrite`: replace existing output.
 - `--align`: align bracket groups before exposure fusion.
 - `--ext jpg|tif`: choose fused frame extension.

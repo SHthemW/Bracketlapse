@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".tif", ".tiff"}
+GENERATED_DIRECTORY_NAMES = {"hdr_enfuse", "hdr_video"}
 
 
 class BracketlapseError(RuntimeError):
@@ -75,6 +76,25 @@ def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
         "--pattern",
         default="*.jp*g",
         help="Input glob pattern. Default: *.jp*g",
+    )
+    parser.add_argument(
+        "--merge-subdirs",
+        action="store_true",
+        help="Merge images from selected immediate subdirectories of the processing directory.",
+    )
+    parser.add_argument(
+        "--merge-dirs",
+        nargs="+",
+        type=Path,
+        help=(
+            "Subdirectories to merge. Relative paths are resolved inside the "
+            "processing directory. Implies --merge-subdirs."
+        ),
+    )
+    parser.add_argument(
+        "--no-merge-subdirs",
+        action="store_true",
+        help="Do not ask about merging subdirectories; process only the chosen directory.",
     )
     parser.add_argument(
         "--group-size",
@@ -198,23 +218,53 @@ def add_video_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def fuse_brackets(args: argparse.Namespace) -> None:
-    directory = resolve_processing_directory(args.directory)
+    directory = resolve_fuse_working_directory(args)
     output_dir = resolve_inside(directory, args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     enfuse = require_tool("enfuse")
     align_image_stack = require_tool("align_image_stack") if args.align else None
 
-    files = find_images(directory, args.pattern, args.sort)
+    source_dirs = resolve_source_directories(
+        directory=directory,
+        output_dir=output_dir,
+        video_output=resolve_inside(directory, args.video_output),
+        pattern=args.pattern,
+        sort_mode=args.sort,
+        merge_subdirs=args.merge_subdirs,
+        merge_dirs=args.merge_dirs,
+        no_merge_subdirs=(
+            args.no_merge_subdirs
+            or (
+                args.directory is not None
+                and not is_current_directory_argument(args.directory)
+                and not args.merge_subdirs
+                and not args.merge_dirs
+            )
+        ),
+    )
+    files = find_images_in_directories(source_dirs, args.pattern, args.sort)
     if not files:
-        raise BracketlapseError(f"No JPG files matched {args.pattern!r} in {directory}")
+        raise BracketlapseError(
+            f"No image files matched {args.pattern!r} in {format_paths(source_dirs)}"
+        )
     if args.group_size < 2:
         raise BracketlapseError("--group-size must be at least 2")
     if args.fps <= 0:
         raise BracketlapseError("--fps must be greater than zero")
-    if len(files) % args.group_size != 0:
+    remainder = len(files) % args.group_size
+    if remainder:
+        dropped_files = files[-remainder:]
+        files = files[:-remainder]
+        print(
+            "Warning: "
+            f"found {len(files) + remainder} files, which is not divisible by "
+            f"group size {args.group_size}; dropping the last {remainder} file(s): "
+            f"{format_paths(dropped_files)}"
+        )
+    if not files:
         raise BracketlapseError(
-            f"Found {len(files)} files, which is not divisible by group size {args.group_size}."
+            f"No complete groups can be formed with group size {args.group_size}."
         )
 
     groups = [
@@ -224,7 +274,8 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     if args.limit is not None:
         groups = groups[: args.limit]
 
-    print(f"Input directory: {directory}")
+    print(f"Working directory: {directory}")
+    print(f"Input directories: {format_paths(source_dirs)}")
     print(f"Found {len(files)} JPG files, {len(groups)} group(s) to process.")
     print(f"Output directory: {output_dir}")
 
@@ -353,6 +404,33 @@ def resolve_processing_directory(value: Path | None) -> Path:
     return directory
 
 
+def resolve_fuse_working_directory(args: argparse.Namespace) -> Path:
+    if args.directory is not None:
+        return resolve_processing_directory(args.directory)
+
+    current_directory = Path.cwd().resolve()
+    if args.merge_subdirs or args.merge_dirs or args.no_merge_subdirs:
+        return current_directory
+
+    output_dir = resolve_inside(current_directory, args.output)
+    video_output = resolve_inside(current_directory, args.video_output)
+    candidates = find_merge_candidates(
+        directory=current_directory,
+        output_dir=output_dir,
+        video_output=video_output,
+        pattern=args.pattern,
+        sort_mode=args.sort,
+    )
+    if candidates:
+        return current_directory
+
+    return resolve_processing_directory(None)
+
+
+def is_current_directory_argument(value: Path) -> bool:
+    return value.expanduser().resolve() == Path.cwd().resolve()
+
+
 def resolve_inside(base: Path, path: Path) -> Path:
     path = path.expanduser()
     if path.is_absolute():
@@ -384,6 +462,146 @@ def find_images(directory: Path, pattern: str, sort_mode: str) -> list[Path]:
     if sort_mode == "time":
         return sorted(files, key=lambda path: (path.stat().st_mtime, path.name.lower()))
     return sorted(files, key=lambda path: path.name.lower())
+
+
+def find_images_in_directories(
+    directories: list[Path],
+    pattern: str,
+    sort_mode: str,
+) -> list[Path]:
+    files: list[Path] = []
+    for directory in directories:
+        files.extend(find_images(directory, pattern, sort_mode))
+    if sort_mode == "time":
+        return sorted(
+            files,
+            key=lambda path: (path.stat().st_mtime, path.parent.name.lower(), path.name.lower()),
+        )
+    return files
+
+
+def resolve_source_directories(
+    directory: Path,
+    output_dir: Path,
+    video_output: Path,
+    pattern: str,
+    sort_mode: str,
+    merge_subdirs: bool,
+    merge_dirs: list[Path] | None,
+    no_merge_subdirs: bool,
+) -> list[Path]:
+    if merge_dirs:
+        return resolve_merge_directories(directory, merge_dirs)
+
+    candidates = find_merge_candidates(
+        directory=directory,
+        output_dir=output_dir,
+        video_output=video_output,
+        pattern=pattern,
+        sort_mode=sort_mode,
+    )
+
+    if merge_subdirs:
+        if not candidates:
+            raise BracketlapseError(f"No mergeable subdirectories were found in {directory}")
+        return candidates
+
+    if no_merge_subdirs or not candidates:
+        return [directory]
+
+    current_directory_files = find_images(directory, pattern, sort_mode)
+    default_merge = not current_directory_files
+
+    print("Subdirectories with matching images were found:")
+    for index, candidate in enumerate(candidates, start=1):
+        count = len(find_images(candidate, pattern, sort_mode))
+        print(f"  {index}. {candidate.name} ({count} files)")
+
+    prompt = "Merge multiple subdirectories? [Y/n]: " if default_merge else "Merge multiple subdirectories? [y/N]: "
+    answer = input(prompt).strip().lower()
+    if not answer and default_merge:
+        return candidates
+    if answer not in {"y", "yes"}:
+        return [directory]
+
+    raw_selection = input(
+        "Subdirectories to merge [all, numbers, or names; default: all]: "
+    ).strip()
+    if not raw_selection:
+        return candidates
+
+    return select_merge_candidates(candidates, raw_selection)
+
+
+def find_merge_candidates(
+    directory: Path,
+    output_dir: Path,
+    video_output: Path,
+    pattern: str,
+    sort_mode: str,
+) -> list[Path]:
+    excluded = {output_dir.resolve(), video_output.parent.resolve()}
+    candidates = []
+    for path in directory.iterdir():
+        if not path.is_dir():
+            continue
+        if path.name.lower() in GENERATED_DIRECTORY_NAMES:
+            continue
+        resolved = path.resolve()
+        if resolved in excluded:
+            continue
+        if find_images(path, pattern, sort_mode):
+            candidates.append(resolved)
+    return sorted(candidates, key=lambda path: path.name.lower())
+
+
+def resolve_merge_directories(base: Path, merge_dirs: list[Path]) -> list[Path]:
+    resolved_dirs = []
+    for value in merge_dirs:
+        directory = value.expanduser()
+        if not directory.is_absolute():
+            directory = base / directory
+        directory = directory.resolve()
+        if not directory.exists():
+            raise BracketlapseError(f"Merge directory does not exist: {directory}")
+        if not directory.is_dir():
+            raise BracketlapseError(f"Merge path is not a directory: {directory}")
+        resolved_dirs.append(directory)
+    return resolved_dirs
+
+
+def select_merge_candidates(candidates: list[Path], raw_selection: str) -> list[Path]:
+    if raw_selection.lower() == "all":
+        return candidates
+
+    selected: list[Path] = []
+    by_name = {path.name.lower(): path for path in candidates}
+    tokens = [
+        token.strip().strip('"')
+        for part in raw_selection.split(",")
+        for token in part.split()
+        if token.strip()
+    ]
+    for token in tokens:
+        if token.isdigit():
+            index = int(token)
+            if index < 1 or index > len(candidates):
+                raise BracketlapseError(f"Subdirectory number is out of range: {token}")
+            candidate = candidates[index - 1]
+        else:
+            candidate = by_name.get(token.lower())
+            if candidate is None:
+                raise BracketlapseError(f"Unknown subdirectory: {token}")
+        if candidate not in selected:
+            selected.append(candidate)
+
+    if not selected:
+        raise BracketlapseError("No subdirectories were selected for merging.")
+    return selected
+
+
+def format_paths(paths: list[Path]) -> str:
+    return ", ".join(str(path) for path in paths)
 
 
 def align_group(
