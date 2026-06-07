@@ -1,6 +1,10 @@
-<img src="res/title.jpg" alt="Bracketlapse" width="60%">
+<p align="center">
+  <img src="res/title.jpg" alt="Bracketlapse" width="60%">
+</p>
 
-English | [简体中文](README.zh-CN.md)
+<p align="center">
+  English | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
 # Bracketlapse
 
