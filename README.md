@@ -61,6 +61,10 @@ bracketlapse
 
 If you run Bracketlapse from a directory that contains image subdirectories, which is common because camera storage formats usually enforce strict limits on the maximum number of photos in a single folder, it asks whether to merge multiple subdirectories. In merge mode, the selected subdirectories are used as input, while `hdr_enfuse` and `hdr_video` are still created in the current working directory.
 
+<p align="center">
+  <img src="res/multi_folders.png" alt="Multiple image folders" width="66%">
+</p>
+
 Merge all detected image subdirectories:
 
 ```bash

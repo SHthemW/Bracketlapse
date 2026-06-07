@@ -61,6 +61,10 @@ bracketlapse
 
 如果在一个包含图片子文件夹的目录中运行 Bracketlapse（这很常见，因为相机的存储格式通常对单文件夹存放的最大照片数量有严格限制），程序会先询问是否合并处理多个子文件夹。合并模式下，用户选择的子文件夹作为输入，`hdr_enfuse` 和 `hdr_video` 仍然创建在当前工作目录下。
 
+<p align="center">
+  <img src="res/multi_folders.png" alt="多个图片文件夹" width="66%">
+</p>
+
 合并所有检测到的图片子文件夹：
 
 ```bash
