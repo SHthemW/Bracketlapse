@@ -1,3 +1,5 @@
+English | [简体中文](README.zh-CN.md)
+
 # Bracketlapse
 
 Bracketlapse is a cross-platform command line tool for bracketed timelapse work:
