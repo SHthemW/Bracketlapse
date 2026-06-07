@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 authors = [
   { name = "Bracketlapse contributors" }
 ]
-license = { text = "MIT" }
+license = "GPL-3.0-or-later"
 dependencies = []
 
 [project.scripts]

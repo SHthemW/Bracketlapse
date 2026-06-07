@@ -151,3 +151,7 @@ bracketlapse video --help
 - `--no-video`：HDR 图片合成后不自动生成视频。
 - `--fps`：视频帧率。
 - `--video-output PATH`：自动生成视频的输出路径。
+
+## 许可证
+
+Bracketlapse 使用 GNU General Public License v3.0 或更高版本授权。详情见 [LICENSE](LICENSE)。

@@ -151,3 +151,7 @@ Important options:
 - `--no-video`: skip automatic video creation after fusion.
 - `--fps`: video frames per second.
 - `--video-output PATH`: automatic video output path.
+
+## License
+
+Bracketlapse is licensed under the GNU General Public License v3.0 or later. See [LICENSE](LICENSE) for details.
