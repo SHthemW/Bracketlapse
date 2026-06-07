@@ -1,3 +1,5 @@
+<img src="res/title.jpg" alt="Bracketlapse" width="60%">
+
 English | [简体中文](README.zh-CN.md)
 
 # Bracketlapse
@@ -7,6 +9,12 @@ Bracketlapse is a cross-platform command line tool for bracketed timelapse work:
 - Fuse every 3 JPG files into one exposure-fused HDR-looking frame with Hugin `enfuse`.
 - Optionally align each bracket group with Hugin `align_image_stack`.
 - Automatically create an MP4 timelapse from the fused frames with `ffmpeg`.
+- Especially useful for Nikon and FUJIFILM cameras, because they can automatically shoot bracketed exposures during timelapse capture. This program was tested with my own Nikon Z30.
+
+<p align="center">
+  <img src="res/z30_cn.jpg" alt="Nikon Z30 bracketing settings in Chinese" width="33%">
+  <img src="res/z30_en.jpg" alt="Nikon Z30 bracketing settings in English" width="33%">
+</p>
 
 It runs on Windows and macOS with Python 3.10+.
 
