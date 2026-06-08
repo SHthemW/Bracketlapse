@@ -450,18 +450,36 @@ def require_tool(name: str) -> str:
 
 
 def find_images(directory: Path, pattern: str, sort_mode: str) -> list[Path]:
-    files = [
-        path
-        for path in directory.iterdir()
-        if (
-            path.is_file()
-            and path.suffix.lower() in IMAGE_EXTENSIONS
-            and fnmatch.fnmatchcase(path.name.lower(), pattern.lower())
-        )
-    ]
+    try:
+        directory_entries = list(directory.iterdir())
+    except OSError as exc:
+        print(f"Warning: skipping unreadable directory {directory}: {exc}", file=sys.stderr)
+        return []
+
+    files = []
+    for path in directory_entries:
+        try:
+            is_matching_file = (
+                path.is_file()
+                and path.suffix.lower() in IMAGE_EXTENSIONS
+                and fnmatch.fnmatchcase(path.name.lower(), pattern.lower())
+            )
+        except OSError as exc:
+            print(f"Warning: skipping unreadable path {path}: {exc}", file=sys.stderr)
+            continue
+        if is_matching_file:
+            files.append(path)
     if sort_mode == "time":
-        return sorted(files, key=lambda path: (path.stat().st_mtime, path.name.lower()))
+        return sorted(files, key=image_sort_key_by_time)
     return sorted(files, key=lambda path: path.name.lower())
+
+
+def image_sort_key_by_time(path: Path) -> tuple[float, str]:
+    try:
+        modified_time = path.stat().st_mtime
+    except OSError:
+        modified_time = 0.0
+    return (modified_time, path.name.lower())
 
 
 def find_images_in_directories(
@@ -475,7 +493,11 @@ def find_images_in_directories(
     if sort_mode == "time":
         return sorted(
             files,
-            key=lambda path: (path.stat().st_mtime, path.parent.name.lower(), path.name.lower()),
+            key=lambda path: (
+                image_sort_key_by_time(path)[0],
+                path.parent.name.lower(),
+                path.name.lower(),
+            ),
         )
     return files
 
