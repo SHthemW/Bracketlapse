@@ -361,6 +361,14 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
     while True:
         time.sleep(quiet_seconds)
         current_count = count_directory_entries(watch_directory)
+        print(
+            format_standby_scan_message(
+                watch_directory=watch_directory,
+                current_count=current_count,
+                baseline=baseline,
+                armed=armed,
+            )
+        )
 
         if armed and current_count <= baseline:
             batch_directory = create_standby_batch_directory(target_directory)
@@ -388,6 +396,25 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
             armed = True
         elif not armed:
             continue
+
+
+def format_standby_scan_message(
+    watch_directory: Path,
+    current_count: int,
+    baseline: int,
+    armed: bool,
+) -> str:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    state = "监听中"
+    if not armed:
+        result = f"等待新文件，当前递归计数 {current_count}，基线 {baseline}"
+    elif current_count > baseline:
+        result = f"检测到新增，当前递归计数 {current_count}，较上次增加 {current_count - baseline}"
+    elif current_count == baseline:
+        result = f"未增加，当前递归计数 {current_count}，与上次相同"
+    else:
+        result = f"未增加，当前递归计数 {current_count}，较上次减少 {baseline - current_count}"
+    return f"[{timestamp}] {state}：{watch_directory}，{result}"
 
 
 def build_video(args: argparse.Namespace) -> None:

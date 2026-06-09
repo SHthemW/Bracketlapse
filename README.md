@@ -65,6 +65,8 @@ Standby mode watches one directory until its recursive entry count stops increas
 bracketlapse --standby WATCH_DIR TARGET_DIR QUIET_SECONDS [loop]
 ```
 
+It prints a status log every QUIET_SECONDS interval while listening.
+
 If a folder named like `20260609` already exists, the next one becomes `20260609-1`, then `20260609-2`, and so on.
 
 If you run Bracketlapse from a directory that contains image subdirectories, which is common because camera storage formats usually enforce strict limits on the maximum number of photos in a single folder, it asks whether to merge multiple subdirectories. In merge mode, the selected subdirectories are used as input, while `hdr_enfuse` and `hdr_video` are still created in the current working directory.
