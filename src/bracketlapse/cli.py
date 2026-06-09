@@ -159,12 +159,12 @@ def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
         "--crf",
         type=int,
         default=18,
-        help="x264 CRF quality value for the automatic video. Default: 18",
+        help="x265 CRF quality value for the automatic video. Default: 18",
     )
     parser.add_argument(
         "--preset",
         default="slow",
-        help="x264 preset for the automatic video. Default: slow",
+        help="x265 preset for the automatic video. Default: slow",
     )
 
 
@@ -203,12 +203,12 @@ def add_video_arguments(parser: argparse.ArgumentParser) -> None:
         "--crf",
         type=int,
         default=18,
-        help="x264 CRF quality value. Lower is higher quality. Default: 18",
+        help="x265 CRF quality value. Lower is higher quality. Default: 18",
     )
     parser.add_argument(
         "--preset",
         default="slow",
-        help="x264 preset. Default: slow",
+        help="x265 preset. Default: slow",
     )
     parser.add_argument(
         "--overwrite",
@@ -377,11 +377,13 @@ def build_video_from_directory(
             "-r",
             format_fps(fps),
             "-c:v",
-            "libx264",
+            "libx265",
             "-crf",
             str(crf),
             "-preset",
             preset,
+            "-tag:v",
+            "hvc1",
             "-pix_fmt",
             "yuv420p",
             str(output),

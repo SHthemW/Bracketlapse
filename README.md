@@ -12,7 +12,7 @@ Bracketlapse is a cross-platform command line tool for bracketed timelapse work:
 
 - Fuse every 3 JPG files into one exposure-fused HDR-looking frame with Hugin `enfuse`.
 - Optionally align each bracket group with Hugin `align_image_stack`.
-- Automatically create an MP4 timelapse from the fused frames with `ffmpeg`.
+- Automatically create an HEVC/H.265 MP4 timelapse from the fused frames with `ffmpeg`.
 - Especially useful for Nikon and FUJIFILM cameras, because they can automatically shoot bracketed exposures during timelapse capture. This program was tested with my own Nikon Z30.
 
 <p align="center">
@@ -93,7 +93,7 @@ DSC_0483.JPG, DSC_0484.JPG, DSC_0485.JPG -> hdr_00002.jpg
 If the total number of input files is not divisible by the group size, Bracketlapse drops the final leftover file(s), prints a warning, and continues processing the complete groups.
 
 The default fused-frame output directory is `hdr_enfuse` inside the processing directory.
-The default video output is `hdr_video/hdr_timelapse.mp4` inside the processing directory.
+The default video output is `hdr_video/hdr_timelapse.mp4` inside the processing directory. Videos are encoded as HEVC/H.265.
 
 Use alignment when the camera moved between the bracketed shots:
 
@@ -151,6 +151,7 @@ Important options:
 - `--no-video`: skip automatic video creation after fusion.
 - `--fps`: video frames per second.
 - `--video-output PATH`: automatic video output path.
+- `--crf` and `--preset`: x265 quality and speed settings for video encoding.
 
 ## License
 
