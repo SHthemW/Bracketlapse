@@ -463,7 +463,11 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
     print(f"Standby loop: {'yes' if standby_config.loop else 'no'}")
 
     baseline = count_directory_entries(watch_directory)
-    armed = True
+    armed = False
+    print(
+        "Standby initial recursive count: "
+        f"{baseline}. Waiting for growth before listening."
+    )
 
     while True:
         time.sleep(quiet_seconds)
@@ -499,6 +503,11 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
             continue
 
         if current_count > baseline:
+            if not armed:
+                print(
+                    "Standby detected growth: "
+                    f"{baseline} -> {current_count}. Listening for quiet interval."
+                )
             baseline = current_count
             armed = True
         elif not armed:
@@ -512,8 +521,13 @@ def format_standby_scan_message(
     armed: bool,
 ) -> str:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    state = "监听中"
-    if not armed:
+    state = "监听中" if armed else "待机中"
+    if not armed and current_count > baseline:
+        result = (
+            f"检测到增长，当前递归计数 {current_count}，"
+            f"较启动基线增加 {current_count - baseline}，即将开始监听"
+        )
+    elif not armed:
         result = f"等待新文件，当前递归计数 {current_count}，基线 {baseline}"
     elif current_count > baseline:
         result = f"检测到新增，当前递归计数 {current_count}，较上次增加 {current_count - baseline}"
