@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import fnmatch
+from datetime import datetime
 import os
 import shutil
 import subprocess
 import sys
+import time
 import tempfile
 from pathlib import Path
 
@@ -18,13 +21,28 @@ class BracketlapseError(RuntimeError):
     pass
 
 
+@dataclass
+class StandbyConfig:
+    watch_directory: Path | None
+    target_directory: Path | None
+    quiet_seconds: float | None
+    loop: bool
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    parser = build_parser(argv)
-    args = parser.parse_args(argv[1:] if argv[:1] == ["video"] else argv)
-
     try:
-        if argv[:1] == ["video"]:
+        standby_config, normalized_argv = extract_standby_config(argv)
+        parser = build_parser(normalized_argv)
+        args = parser.parse_args(
+            normalized_argv[1:] if normalized_argv[:1] == ["video"] else normalized_argv
+        )
+
+        if standby_config is not None:
+            if argv[:1] == ["video"]:
+                raise BracketlapseError("Standby mode cannot be combined with the video command.")
+            run_standby(args, standby_config)
+        elif argv[:1] == ["video"]:
             build_video(args)
         else:
             fuse_brackets(args)
@@ -59,6 +77,14 @@ def build_parser(argv: list[str]) -> argparse.ArgumentParser:
 
 
 def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--standby",
+        action="store_true",
+        help=(
+            "Enter standby mode. Provide WATCH_DIR TARGET_DIR QUIET_SECONDS "
+            "[loop] immediately after this flag."
+        ),
+    )
     parser.add_argument(
         "directory",
         nargs="?",
@@ -313,6 +339,57 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     print("Done.")
 
 
+def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None:
+    watch_directory = resolve_standby_watch_directory(standby_config.watch_directory)
+    target_directory = resolve_standby_target_directory(standby_config.target_directory)
+    quiet_seconds = resolve_standby_quiet_seconds(standby_config.quiet_seconds)
+    watch_resolved = watch_directory.resolve()
+    target_resolved = target_directory.resolve()
+    if target_resolved != watch_resolved and target_resolved.is_relative_to(watch_resolved):
+        raise BracketlapseError(
+            "Target directory cannot be nested inside the watch directory."
+        )
+
+    print(f"Standby watch directory: {watch_directory}")
+    print(f"Standby target directory: {target_directory}")
+    print(f"Standby quiet seconds: {format_fps(quiet_seconds)}")
+    print(f"Standby loop: {'yes' if standby_config.loop else 'no'}")
+
+    baseline = count_directory_entries(watch_directory)
+    armed = True
+
+    while True:
+        time.sleep(quiet_seconds)
+        current_count = count_directory_entries(watch_directory)
+
+        if armed and current_count <= baseline:
+            batch_directory = create_standby_batch_directory(target_directory)
+            move_directory_contents(watch_directory, batch_directory)
+
+            standby_args = argparse.Namespace(**vars(args))
+            standby_args.directory = batch_directory
+            standby_args.merge_subdirs = True
+            standby_args.merge_dirs = None
+            standby_args.no_merge_subdirs = False
+            standby_args.no_video = False
+
+            print(f"Standby batch directory: {batch_directory}")
+            fuse_brackets(standby_args)
+
+            if not standby_config.loop:
+                return
+
+            baseline = count_directory_entries(watch_directory)
+            armed = False
+            continue
+
+        if current_count > baseline:
+            baseline = current_count
+            armed = True
+        elif not armed:
+            continue
+
+
 def build_video(args: argparse.Namespace) -> None:
     directory = resolve_processing_directory(args.directory)
     output = resolve_inside(directory, args.output)
@@ -433,6 +510,98 @@ def is_current_directory_argument(value: Path) -> bool:
     return value.expanduser().resolve() == Path.cwd().resolve()
 
 
+def extract_standby_config(argv: list[str]) -> tuple[StandbyConfig | None, list[str]]:
+    if "--standby" not in argv:
+        return None, argv
+
+    standby_index = argv.index("--standby")
+    consumed = {standby_index}
+    values: list[str] = []
+    index = standby_index + 1
+
+    while index < len(argv) and len(values) < 3:
+        token = argv[index]
+        if token.startswith("-"):
+            break
+        values.append(token)
+        consumed.add(index)
+        index += 1
+
+    loop = False
+    if index < len(argv) and argv[index] == "loop":
+        loop = True
+        consumed.add(index)
+
+    standby_config = StandbyConfig(
+        watch_directory=Path(values[0]) if len(values) > 0 else None,
+        target_directory=Path(values[1]) if len(values) > 1 else None,
+        quiet_seconds=_parse_float(values[2]) if len(values) > 2 else None,
+        loop=loop,
+    )
+    remaining = [token for index, token in enumerate(argv) if index not in consumed]
+    return standby_config, remaining
+
+
+def resolve_standby_watch_directory(value: Path | None) -> Path:
+    return resolve_processing_directory(value)
+
+
+def resolve_standby_target_directory(value: Path | None) -> Path:
+    if value is None:
+        raw = input("Target directory: ").strip().strip('"')
+        if not raw:
+            raise BracketlapseError("No target directory was provided.")
+        value = Path(raw)
+
+    directory = value.expanduser().resolve()
+    if directory.exists() and not directory.is_dir():
+        raise BracketlapseError(f"Target path is not a directory: {directory}")
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def resolve_standby_quiet_seconds(value: float | None) -> float:
+    if value is None:
+        raw = input("Quiet seconds: ").strip()
+        if not raw:
+            raise BracketlapseError("No quiet seconds were provided.")
+        value = _parse_float(raw)
+    if value <= 0:
+        raise BracketlapseError("Quiet seconds must be greater than zero.")
+    return value
+
+
+def count_directory_entries(directory: Path) -> int:
+    total = 0
+    try:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                total += 1
+                if entry.is_dir(follow_symlinks=False):
+                    total += count_directory_entries(Path(entry.path))
+    except OSError as exc:
+        print(f"Warning: skipping unreadable directory {directory}: {exc}", file=sys.stderr)
+    return total
+
+
+def create_standby_batch_directory(target_directory: Path) -> Path:
+    date_prefix = datetime.now().strftime("%Y%m%d")
+    candidate = target_directory / date_prefix
+    suffix = 1
+    while candidate.exists():
+        candidate = target_directory / f"{date_prefix}-{suffix}"
+        suffix += 1
+    candidate.mkdir(parents=True, exist_ok=False)
+    return candidate
+
+
+def move_directory_contents(source: Path, destination: Path) -> None:
+    for entry in list(source.iterdir()):
+        if entry.resolve() == destination.resolve():
+            continue
+        shutil.move(str(entry), str(destination / entry.name))
+
+
 def resolve_inside(base: Path, path: Path) -> Path:
     path = path.expanduser()
     if path.is_absolute():
@@ -526,8 +695,13 @@ def resolve_source_directories(
     )
 
     if merge_subdirs:
+        root_images = find_images(directory, pattern, sort_mode)
         if not candidates:
+            if root_images:
+                return [directory]
             raise BracketlapseError(f"No mergeable subdirectories were found in {directory}")
+        if root_images:
+            return [directory, *candidates]
         return candidates
 
     if no_merge_subdirs or not candidates:
@@ -592,6 +766,13 @@ def resolve_merge_directories(base: Path, merge_dirs: list[Path]) -> list[Path]:
             raise BracketlapseError(f"Merge path is not a directory: {directory}")
         resolved_dirs.append(directory)
     return resolved_dirs
+
+
+def _parse_float(raw: str) -> float:
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise BracketlapseError(f"Invalid quiet seconds value: {raw!r}") from exc
 
 
 def select_merge_candidates(candidates: list[Path], raw_selection: str) -> list[Path]:
