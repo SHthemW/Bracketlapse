@@ -13,6 +13,33 @@ import time
 import tempfile
 from pathlib import Path
 
+_RESET = "\033[0m"
+_DIM = "\033[2m"
+_RED = "\033[31m"
+_YELLOW = "\033[33m"
+
+
+class Logger:
+    def debug(self, msg: str) -> None:
+        print(f"{_DIM}[{datetime.now().strftime('%H:%M:%S')} D] {msg}{_RESET}")
+
+    def info(self, msg: str) -> None:
+        print(f"[{datetime.now().strftime('%H:%M:%S')} I] {msg}")
+
+    def warn(self, msg: str) -> None:
+        print(
+            f"{_YELLOW}[{datetime.now().strftime('%H:%M:%S')} W] {msg}{_RESET}",
+            file=sys.stderr,
+        )
+
+    def error(self, msg: str) -> None:
+        print(
+            f"{_RED}[{datetime.now().strftime('%H:%M:%S')} E] {msg}{_RESET}",
+            file=sys.stderr,
+        )
+
+
+log = Logger()
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".tif", ".tiff"}
 GENERATED_DIRECTORY_NAMES = {"hdr_enfuse", "hdr_video"}
@@ -48,10 +75,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             fuse_brackets(args)
     except BracketlapseError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        log.error(str(exc))
         return 1
     except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
+        log.error("Interrupted.")
         return 130
 
     return 0
@@ -283,8 +310,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     if remainder:
         dropped_files = files[-remainder:]
         files = files[:-remainder]
-        print(
-            "Warning: "
+        log.warn(
             f"found {len(files) + remainder} files, which is not divisible by "
             f"group size {args.group_size}; dropping the last {remainder} file(s): "
             f"{format_paths(dropped_files)}"
@@ -296,10 +322,9 @@ def fuse_brackets(args: argparse.Namespace) -> None:
 
     sequence_gap_ranges = detect_sequence_gap_ranges(files)
     if sequence_gap_ranges:
-        print(
-            "Warning: sequence gaps detected before HDR fusion; "
-            f"incomplete groups will be skipped: {format_sequence_gap_ranges(sequence_gap_ranges)}",
-            file=sys.stderr,
+        log.warn(
+            "sequence gaps detected before HDR fusion; "
+            f"incomplete groups will be skipped: {format_sequence_gap_ranges(sequence_gap_ranges)}"
         )
 
     groups = build_fusion_groups(files, args.group_size)
@@ -308,19 +333,19 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     if args.limit is not None:
         groups = groups[: args.limit]
 
-    print(f"Working directory: {directory}")
-    print(f"Input directories: {format_paths(source_dirs)}")
-    print(f"Found {len(files)} JPG files, {len(groups)} group(s) to process.")
-    print(f"Output directory: {output_dir}")
+    log.info(f"Working directory: {directory}")
+    log.info(f"Input directories: {format_paths(source_dirs)}")
+    log.info(f"Found {len(files)} JPG files, {len(groups)} group(s) to process.")
+    log.info(f"Output directory: {output_dir}")
 
     for offset, group in enumerate(groups):
         frame_number = args.start_number + offset
         output = output_dir / f"hdr_{frame_number:05d}.{args.ext}"
         if output.exists() and not args.overwrite:
-            print(f"[{offset + 1}/{len(groups)}] Skip existing {output.name}")
+            log.info(f"[{offset + 1}/{len(groups)}] Skip existing {output.name}")
             continue
 
-        print(f"[{offset + 1}/{len(groups)}] Fusing {output.name}")
+        log.info(f"[{offset + 1}/{len(groups)}] Fusing {output.name}")
         if args.align:
             assert align_image_stack is not None
             with tempfile.TemporaryDirectory(prefix="bracketlapse_align_") as tmp:
@@ -331,7 +356,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
 
     if not args.no_video:
         video_output = resolve_inside(directory, args.video_output)
-        print("Creating video from fused frames.")
+        log.info("Creating video from fused frames.")
         build_video_from_directory(
             directory=output_dir,
             output=video_output,
@@ -344,7 +369,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
             skip_existing=True,
         )
 
-    print("Done.")
+    log.info("Done.")
 
 
 def build_fusion_groups(files: list[Path], group_size: int) -> list[list[Path]]:
@@ -356,9 +381,8 @@ def build_fusion_groups(files: list[Path], group_size: int) -> list[list[Path]]:
         numbered_files.append((sequence_number, path))
 
     if len({sequence_number for sequence_number, _ in numbered_files}) != len(numbered_files):
-        print(
-            "Warning: duplicate sequence numbers were found; falling back to simple grouping.",
-            file=sys.stderr,
+        log.warn(
+            "duplicate sequence numbers were found; falling back to simple grouping."
         )
         return chunk_files(files, group_size)
 
@@ -372,11 +396,10 @@ def build_fusion_groups(files: list[Path], group_size: int) -> list[list[Path]]:
         group = [sequence_map.get(sequence_number) for sequence_number in expected]
         missing = [sequence_number for sequence_number, item in zip(expected, group) if item is None]
         if missing:
-            print(
-                "Warning: skipping incomplete HDR group "
+            log.warn(
+                f"skipping incomplete HDR group "
                 f"{block_start}-{block_start + group_size - 1}; "
-                f"missing sequence number(s): {format_sequence_numbers(missing)}",
-                file=sys.stderr,
+                f"missing sequence number(s): {format_sequence_numbers(missing)}"
             )
             continue
         groups.append([path for path in group if path is not None])
@@ -457,22 +480,22 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
             "Target directory cannot be nested inside the watch directory."
         )
 
-    print(f"Standby watch directory: {watch_directory}")
-    print(f"Standby target directory: {target_directory}")
-    print(f"Standby quiet seconds: {format_fps(quiet_seconds)}")
-    print(f"Standby loop: {'yes' if standby_config.loop else 'no'}")
+    log.info(f"Standby watch directory: {watch_directory}")
+    log.info(f"Standby target directory: {target_directory}")
+    log.info(f"Standby quiet seconds: {format_fps(quiet_seconds)}")
+    log.info(f"Standby loop: {'yes' if standby_config.loop else 'no'}")
 
     baseline = count_directory_entries(watch_directory)
     armed = False
-    print(
-        "Standby initial recursive count: "
+    log.info(
+        f"Standby initial recursive count: "
         f"{baseline}. Waiting for growth before listening."
     )
 
     while True:
         time.sleep(quiet_seconds)
         current_count = count_directory_entries(watch_directory)
-        print(
+        log.info(
             format_standby_scan_message(
                 watch_directory=watch_directory,
                 current_count=current_count,
@@ -492,7 +515,7 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
             standby_args.no_merge_subdirs = False
             standby_args.no_video = False
 
-            print(f"Standby batch directory: {batch_directory}")
+            log.info(f"Standby batch directory: {batch_directory}")
             fuse_brackets(standby_args)
 
             if not standby_config.loop:
@@ -504,8 +527,8 @@ def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None
 
         if current_count > baseline:
             if not armed:
-                print(
-                    "Standby detected growth: "
+                log.info(
+                    f"Standby detected growth: "
                     f"{baseline} -> {current_count}. Listening for quiet interval."
                 )
             baseline = current_count
@@ -553,7 +576,7 @@ def build_video(args: argparse.Namespace) -> None:
         skip_existing=False,
     )
 
-    print("Done.")
+    log.info("Done.")
 
 
 def build_video_from_directory(
@@ -571,7 +594,7 @@ def build_video_from_directory(
 
     if output.exists() and not overwrite:
         if skip_existing:
-            print(f"Skip existing video: {output}")
+            log.info(f"Skip existing video: {output}")
             return
         raise BracketlapseError(f"Output already exists: {output}. Use --overwrite to replace it.")
     if fps <= 0:
@@ -582,9 +605,9 @@ def build_video_from_directory(
     if not files:
         raise BracketlapseError(f"No JPG files matched {pattern!r} in {directory}")
 
-    print(f"Input directory: {directory}")
-    print(f"Found {len(files)} JPG frames.")
-    print(f"Output video: {output}")
+    log.info(f"Input directory: {directory}")
+    log.info(f"Found {len(files)} JPG frames.")
+    log.info(f"Output video: {output}")
 
     with tempfile.TemporaryDirectory(prefix="bracketlapse_ffmpeg_") as tmp:
         concat_file = Path(tmp) / "frames.ffconcat"
@@ -728,7 +751,7 @@ def count_directory_entries(directory: Path) -> int:
                 if entry.is_dir(follow_symlinks=False):
                     total += count_directory_entries(Path(entry.path))
     except OSError as exc:
-        print(f"Warning: skipping unreadable directory {directory}: {exc}", file=sys.stderr)
+        log.warn(f"skipping unreadable directory {directory}: {exc}")
     return total
 
 
@@ -772,7 +795,7 @@ def find_images(directory: Path, pattern: str, sort_mode: str) -> list[Path]:
     try:
         directory_entries = list(directory.iterdir())
     except OSError as exc:
-        print(f"Warning: skipping unreadable directory {directory}: {exc}", file=sys.stderr)
+        log.warn(f"skipping unreadable directory {directory}: {exc}")
         return []
 
     files = []
@@ -784,7 +807,7 @@ def find_images(directory: Path, pattern: str, sort_mode: str) -> list[Path]:
                 and fnmatch.fnmatchcase(path.name.lower(), pattern.lower())
             )
         except OSError as exc:
-            print(f"Warning: skipping unreadable path {path}: {exc}", file=sys.stderr)
+            log.warn(f"skipping unreadable path {path}: {exc}")
             continue
         if is_matching_file:
             files.append(path)
@@ -858,10 +881,10 @@ def resolve_source_directories(
     current_directory_files = find_images(directory, pattern, sort_mode)
     default_merge = not current_directory_files
 
-    print("Subdirectories with matching images were found:")
+    log.info("Subdirectories with matching images were found:")
     for index, candidate in enumerate(candidates, start=1):
         count = len(find_images(candidate, pattern, sort_mode))
-        print(f"  {index}. {candidate.name} ({count} files)")
+        log.info(f"  {index}. {candidate.name} ({count} files)")
 
     prompt = "Merge multiple subdirectories? [Y/n]: " if default_merge else "Merge multiple subdirectories? [y/N]: "
     answer = input(prompt).strip().lower()
@@ -995,13 +1018,30 @@ def format_fps(value: float) -> str:
 
 def run_command(command: list[str]) -> None:
     try:
-        subprocess.run(command, check=True)
+        result = subprocess.run(command, capture_output=True, text=True)
     except FileNotFoundError as exc:
         raise BracketlapseError(f"Executable not found: {command[0]}") from exc
-    except subprocess.CalledProcessError as exc:
+
+    if result.returncode != 0:
+        _emit_external_output(result.stdout, error=True)
+        _emit_external_output(result.stderr, error=True)
         raise BracketlapseError(
-            f"Command failed with exit code {exc.returncode}: {' '.join(command)}"
-        ) from exc
+            f"Command failed with exit code {result.returncode}: {' '.join(command)}"
+        )
+
+    _emit_external_output(result.stdout)
+    _emit_external_output(result.stderr)
+
+
+def _emit_external_output(text: str, *, error: bool = False) -> None:
+    if not text:
+        return
+    level = log.error if error else log.debug
+    for line in text.strip().split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        level(stripped)
 
 
 if __name__ == "__main__":
