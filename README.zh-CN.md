@@ -131,6 +131,14 @@ bracketlapse "E:\Medias\Images\example" --no-video
 bracketlapse "E:\Medias\Images\example" --fps 30 --video-output hdr_video\hdr_timelapse.mp4
 ```
 
+同时生成一份去闪版本，和普通视频并存：
+
+```bash
+bracketlapse "E:\Medias\Images\example" --smooth-exposure
+```
+
+会输出 `hdr_timelapse.mp4` 和 `hdr_timelapse_deflick.mp4`。
+
 也可以手动把已有 JPG 帧目录合成为视频：
 
 ```bash
@@ -163,6 +171,7 @@ bracketlapse video --help
 - `--no-video`：HDR 图片合成后不自动生成视频。
 - `--fps`：视频帧率。
 - `--video-output PATH`：自动生成视频的输出路径。
+- `--smooth-exposure`：额外生成一份去闪视频。
 - `--crf` 和 `--preset`：x265 视频编码质量和速度参数。
 
 ## 许可证

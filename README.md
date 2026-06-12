@@ -131,6 +131,14 @@ Choose video settings for the automatic video:
 bracketlapse "E:\Medias\Images\example" --fps 30 --video-output hdr_video\hdr_timelapse.mp4
 ```
 
+Also create a deflickered copy next to the normal video:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --smooth-exposure
+```
+
+That writes `hdr_timelapse.mp4` and `hdr_timelapse_deflick.mp4`.
+
 Create a video manually from an existing JPG frame directory:
 
 ```bash
@@ -163,6 +171,7 @@ Important options:
 - `--no-video`: skip automatic video creation after fusion.
 - `--fps`: video frames per second.
 - `--video-output PATH`: automatic video output path.
+- `--smooth-exposure`: also create a deflickered sibling video.
 - `--crf` and `--preset`: x265 quality and speed settings for video encoding.
 
 ## License

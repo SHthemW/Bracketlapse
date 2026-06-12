@@ -220,6 +220,11 @@ def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
         default="slow",
         help="x265 preset for the automatic video. Default: slow",
     )
+    parser.add_argument(
+        "--smooth-exposure",
+        action="store_true",
+        help="Also create a deflickered copy of the automatic video.",
+    )
 
 
 def add_video_arguments(parser: argparse.ArgumentParser) -> None:
@@ -268,6 +273,11 @@ def add_video_arguments(parser: argparse.ArgumentParser) -> None:
         "--overwrite",
         action="store_true",
         help="Overwrite the output video if it already exists.",
+    )
+    parser.add_argument(
+        "--smooth-exposure",
+        action="store_true",
+        help="Also create a deflickered copy of the video.",
     )
 
 
@@ -367,6 +377,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
             preset=args.preset,
             overwrite=args.overwrite,
             skip_existing=True,
+            smooth_exposure=args.smooth_exposure,
         )
 
     log.info("Done.")
@@ -574,6 +585,7 @@ def build_video(args: argparse.Namespace) -> None:
         preset=args.preset,
         overwrite=args.overwrite,
         skip_existing=False,
+        smooth_exposure=args.smooth_exposure,
     )
 
     log.info("Done.")
@@ -589,6 +601,7 @@ def build_video_from_directory(
     preset: str,
     overwrite: bool,
     skip_existing: bool,
+    smooth_exposure: bool,
 ) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -608,35 +621,102 @@ def build_video_from_directory(
     log.info(f"Input directory: {directory}")
     log.info(f"Found {len(files)} JPG frames.")
     log.info(f"Output video: {output}")
+    deflick_output = make_deflick_output_path(output)
+    if smooth_exposure:
+        log.info(f"Deflickered video: {deflick_output}")
 
     with tempfile.TemporaryDirectory(prefix="bracketlapse_ffmpeg_") as tmp:
         concat_file = Path(tmp) / "frames.ffconcat"
         write_ffconcat(concat_file, files, 1.0 / fps)
 
-        command = [
-            ffmpeg,
-            "-y" if overwrite else "-n",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_file),
-            "-r",
-            format_fps(fps),
-            "-c:v",
-            "libx265",
-            "-crf",
-            str(crf),
-            "-preset",
-            preset,
-            "-tag:v",
-            "hvc1",
-            "-pix_fmt",
-            "yuv420p",
-            str(output),
-        ]
-        run_command(command)
+        render_video_file(
+            ffmpeg=ffmpeg,
+            concat_file=concat_file,
+            output=output,
+            fps=fps,
+            crf=crf,
+            preset=preset,
+            overwrite=overwrite,
+            skip_existing=skip_existing,
+            video_filters=None,
+        )
+        if smooth_exposure:
+            render_video_file(
+                ffmpeg=ffmpeg,
+                concat_file=concat_file,
+                output=deflick_output,
+                fps=fps,
+                crf=crf,
+                preset=preset,
+                overwrite=overwrite,
+                skip_existing=skip_existing,
+                video_filters=build_video_filters(True),
+            )
+
+
+def build_video_filters(smooth_exposure: bool) -> str | None:
+    if not smooth_exposure:
+        return None
+    return "deflicker"
+
+
+def make_deflick_output_path(output: Path) -> Path:
+    suffix = output.suffix
+    if suffix:
+        return output.with_name(f"{output.stem}_deflick{suffix}")
+    return output.with_name(f"{output.name}_deflick")
+
+
+def render_video_file(
+    ffmpeg: str,
+    concat_file: Path,
+    output: Path,
+    fps: float,
+    crf: int,
+    preset: str,
+    overwrite: bool,
+    skip_existing: bool,
+    video_filters: str | None,
+) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    if output.exists() and not overwrite:
+        if skip_existing:
+            log.info(f"Skip existing video: {output}")
+            return
+        raise BracketlapseError(f"Output already exists: {output}. Use --overwrite to replace it.")
+
+    label = "deflickered" if video_filters else "standard"
+    log.info(f"Creating {label} video: {output}")
+
+    command = [
+        ffmpeg,
+        "-y" if overwrite else "-n",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(concat_file),
+    ]
+    if video_filters:
+        command.extend(["-vf", video_filters])
+    command.extend([
+        "-r",
+        format_fps(fps),
+        "-c:v",
+        "libx265",
+        "-crf",
+        str(crf),
+        "-preset",
+        preset,
+        "-tag:v",
+        "hvc1",
+        "-pix_fmt",
+        "yuv420p",
+        str(output),
+    ])
+    run_command(command)
 
 
 def resolve_processing_directory(value: Path | None) -> Path:
