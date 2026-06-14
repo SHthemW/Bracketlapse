@@ -153,6 +153,14 @@ bracketlapse "E:\Medias\Images\example" --fps 30 --video-output hdr_video\hdr_ti
 bracketlapse "E:\Medias\Images\example" --deflick-rolling-average 15 --deflick-jpeg-compression 95
 ```
 
+打印 debug 级别日志，并额外生成一条去闪前的 HDR 调试视频：
+
+```bash
+bracketlapse "E:\Medias\Images\example" --debug
+```
+
+该模式会在去闪前写出 `hdr_video/hdr_timelapse_hdr_debug.mp4`。
+
 如果可执行文件不是 `simple-deflicker` 这个名字，或没有加入 `PATH`，可以显式指定：
 
 ```bash
@@ -195,6 +203,7 @@ bracketlapse video --help
 - `--deflick-output PATH`：去闪图片输出目录。
 - `--deflick-bin PATH`：simple-deflicker 可执行文件名或路径。
 - `--deflick-rolling-average`、`--deflick-jpeg-compression` 和 `--deflick-threads`：simple-deflicker 参数。
+- `--debug`：打印 debug 级别日志，并额外生成去闪前的 HDR 调试视频。
 - `--crf` 和 `--preset`：x265 视频编码质量和速度参数。
 
 ## 许可证

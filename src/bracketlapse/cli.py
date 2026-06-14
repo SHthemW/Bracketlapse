@@ -18,6 +18,7 @@ def main(argv: list[str] | None = None) -> int:
         args = parser.parse_args(
             normalized_argv[1:] if normalized_argv[:1] == ["video"] else normalized_argv
         )
+        log.set_debug(args.debug)
         command = "video" if normalized_argv[:1] == ["video"] else "fuse"
         if not any(token in {"-h", "--help"} for token in normalized_argv):
             ensure_runtime_environment(args, command)

@@ -25,6 +25,7 @@ def build_parser(argv: list[str]) -> argparse.ArgumentParser:
 
 
 def add_fuse_arguments(parser: argparse.ArgumentParser) -> None:
+    add_common_arguments(parser)
     parser.add_argument(
         "--standby",
         action="store_true",
@@ -122,6 +123,7 @@ def add_deflick_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_video_arguments(parser: argparse.ArgumentParser) -> None:
+    add_common_arguments(parser)
     parser.add_argument(
         "directory",
         nargs="?",
@@ -144,6 +146,14 @@ def add_video_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--overwrite", action="store_true", help="Overwrite the output video.")
     add_video_encoding_arguments(parser, automatic=False)
+
+
+def add_common_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print debug logs and create extra debug outputs when available.",
+    )
 
 
 def add_video_encoding_arguments(parser: argparse.ArgumentParser, *, automatic: bool) -> None:

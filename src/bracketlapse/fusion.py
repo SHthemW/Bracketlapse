@@ -83,6 +83,20 @@ def fuse_brackets(args: argparse.Namespace) -> None:
 
     video_source_dir = output_dir
     video_pattern = f"*.{args.ext}"
+    if args.debug and not args.no_deflick:
+        log.info("Creating HDR debug video before deflicker.")
+        build_video_from_directory(
+            directory=output_dir,
+            output=make_debug_video_output(video_output),
+            fps=args.fps,
+            pattern=video_pattern,
+            sort_mode="name",
+            crf=args.crf,
+            preset=args.preset,
+            overwrite=args.overwrite,
+            skip_existing=True,
+        )
+
     if not args.no_deflick:
         log.info("Deflickering fused frames.")
         deflick_frames(
@@ -173,3 +187,9 @@ def resolve_fuse_working_directory(args: argparse.Namespace) -> Path:
 
 def is_current_directory_argument(value: Path) -> bool:
     return value.expanduser().resolve() == Path.cwd().resolve()
+
+
+def make_debug_video_output(output: Path) -> Path:
+    if output.suffix:
+        return output.with_name(f"{output.stem}_hdr_debug{output.suffix}")
+    return output.with_name(f"{output.name}_hdr_debug")

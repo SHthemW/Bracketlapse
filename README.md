@@ -158,6 +158,14 @@ Choose simple-deflicker settings:
 bracketlapse "E:\Medias\Images\example" --deflick-rolling-average 15 --deflick-jpeg-compression 95
 ```
 
+Print debug logs and create an extra pre-deflicker HDR video:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --debug
+```
+
+This writes `hdr_video/hdr_timelapse_hdr_debug.mp4` before deflicker starts.
+
 If the executable is not named `simple-deflicker` or is not in `PATH`, pass it explicitly:
 
 ```bash
@@ -200,6 +208,7 @@ Important options:
 - `--deflick-output PATH`: deflickered frame output directory.
 - `--deflick-bin PATH`: simple-deflicker executable name or path.
 - `--deflick-rolling-average`, `--deflick-jpeg-compression`, and `--deflick-threads`: simple-deflicker settings.
+- `--debug`: print debug logs and create an extra pre-deflicker HDR video.
 - `--crf` and `--preset`: x265 quality and speed settings for video encoding.
 
 ## License

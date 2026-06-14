@@ -14,7 +14,15 @@ _YELLOW = "\033[33m"
 
 
 class Logger:
+    def __init__(self) -> None:
+        self.debug_enabled = False
+
+    def set_debug(self, enabled: bool) -> None:
+        self.debug_enabled = enabled
+
     def debug(self, msg: str) -> None:
+        if not self.debug_enabled:
+            return
         print(f"{_DIM}[{datetime.now().strftime('%H:%M:%S')} D] {msg}{_RESET}")
 
     def info(self, msg: str) -> None:

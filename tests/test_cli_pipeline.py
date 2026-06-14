@@ -41,6 +41,7 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 mkdir -p "$(dirname "$out")"
+printf "mock enfuse debug\\n"
 printf "fused\\n" > "$out"
 """,
     )
@@ -49,6 +50,7 @@ printf "fused\\n" > "$out"
         """#!/bin/sh
 for last do true; done
 mkdir -p "$(dirname "$last")"
+printf "mock ffmpeg debug\\n"
 printf "video\\n" > "$last"
 """,
     )
@@ -66,6 +68,7 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 mkdir -p "$dst"
+printf "mock deflicker debug\\n"
 cp "$src"/*.jpg "$dst"/
 """,
         )
@@ -98,6 +101,25 @@ def test_fuse_pipeline_deflickers_before_video(tmp_path: Path) -> None:
         "hdr_00002.jpg",
     ]
     assert (work_dir / "hdr_video" / "hdr_timelapse.mp4").read_text(encoding="utf-8") == "video\n"
+    assert "mock enfuse debug" not in result.stdout
+
+
+def test_debug_creates_hdr_video_and_prints_debug_logs(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "bin"
+    work_dir = tmp_path / "work"
+    create_mock_tools(bin_dir)
+    create_input_frames(work_dir, 3)
+
+    result = run_bracketlapse(
+        [str(work_dir), "--no-merge-subdirs", "--overwrite", "--debug"],
+        bin_dir,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "mock enfuse debug" in result.stdout
+    assert "mock deflicker debug" in result.stdout
+    assert (work_dir / "hdr_video" / "hdr_timelapse_hdr_debug.mp4").exists()
+    assert (work_dir / "hdr_video" / "hdr_timelapse.mp4").exists()
 
 
 def test_no_video_still_deflickers_by_default(tmp_path: Path) -> None:
