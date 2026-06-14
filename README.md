@@ -27,13 +27,21 @@ It runs on Windows and macOS with Python 3.10+.
 
 ## Requirements
 
-Install these tools and make sure their `bin` directories are in `PATH`:
+Bracketlapse checks the selected pipeline at startup and tries to prepare
+missing tools automatically.
 
-- Hugin command line tools: `enfuse`, and optionally `align_image_stack`
-- `simple-deflicker` from the `dev_2026` branch. Build it with:
-  `git clone -b dev_2026 https://github.com/SHthemW/simple-deflicker.git`
-  and then `go build -tags cli -o simple-deflicker` inside that repository.
-- `ffmpeg`
+Required runtime tools:
+
+- Hugin command line tools: `enfuse`, and optionally `align_image_stack`.
+- `simple-deflicker` from the `dev_2026` branch.
+- `ffmpeg`.
+
+Automatic setup uses a local package manager when available: Homebrew on macOS,
+winget or Chocolatey on Windows, and apt/dnf/pacman on Linux. If
+`simple-deflicker` is missing, Bracketlapse clones the `dev_2026` branch and
+builds it into `~/.cache/bracketlapse/tools/bin`, which requires `git` and Go.
+If a required tool cannot be prepared automatically, Bracketlapse stops before
+processing starts and reports the missing tool.
 
 On Windows, if Hugin is installed at `D:\Medias\Hugin\bin`, add that directory to your user `PATH`.
 

@@ -4,6 +4,7 @@ import sys
 
 from .arguments import build_parser
 from .common import BracketlapseError, log
+from .environment import ensure_runtime_environment
 from .fusion import fuse_brackets
 from .standby import extract_standby_config, run_standby
 from .video import build_video
@@ -17,6 +18,9 @@ def main(argv: list[str] | None = None) -> int:
         args = parser.parse_args(
             normalized_argv[1:] if normalized_argv[:1] == ["video"] else normalized_argv
         )
+        command = "video" if normalized_argv[:1] == ["video"] else "fuse"
+        if not any(token in {"-h", "--help"} for token in normalized_argv):
+            ensure_runtime_environment(args, command)
 
         if standby_config is not None:
             if argv[:1] == ["video"]:
@@ -34,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         return 130
 
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
