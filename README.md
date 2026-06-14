@@ -67,7 +67,7 @@ Fuse bracketed JPG files in a directory, then automatically create a video:
 bracketlapse "E:\Medias\Images\example"
 ```
 
-If you do not pass a directory, Bracketlapse asks for one:
+If you do not pass any arguments, Bracketlapse prints the full help text:
 
 ```bash
 bracketlapse
@@ -178,7 +178,7 @@ Create a video manually from an existing JPG frame directory:
 bracketlapse video "E:\Medias\Images\example\hdr_enfuse" --fps 30 --output hdr_timelapse.mp4
 ```
 
-The video command also asks for the processing directory if it is omitted:
+Run `video` without extra arguments to print the video command help:
 
 ```bash
 bracketlapse video

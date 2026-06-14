@@ -62,7 +62,7 @@ python3 -m pip install -e .
 bracketlapse "E:\Medias\Images\example"
 ```
 
-如果不提供目录，程序会询问处理目录：
+如果不提供任何参数，Bracketlapse 会打印完整帮助：
 
 ```bash
 bracketlapse
@@ -173,7 +173,7 @@ bracketlapse "E:\Medias\Images\example" --deflick-bin "D:\Tools\simple-deflicker
 bracketlapse video "E:\Medias\Images\example\hdr_enfuse" --fps 30 --output hdr_timelapse.mp4
 ```
 
-如果 `video` 命令不提供目录，也会询问处理目录：
+不提供更多参数直接运行 `video`，会打印视频命令帮助：
 
 ```bash
 bracketlapse video
