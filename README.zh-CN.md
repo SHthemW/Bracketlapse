@@ -11,6 +11,8 @@
 Bracketlapse 是一个跨平台命令行工具，用于处理包围曝光延时摄影素材：
 
 - 每 3 张 JPG 合成 1 张曝光融合后的 HDR 风格图片，合成由 Hugin `enfuse` 完成。
+  默认 `enfuse` 参数为 `--exposure-width=0.05`、`--exposure-optimum=0.30`、
+  `--saturation-weight=0` 和 `--contrast-weight=0`。
 - 可选使用 Hugin `align_image_stack` 先对齐每组包围曝光照片。
 - HDR 图片合成完成后，自动使用 `ffmpeg` 生成 HEVC/H.265 MP4 延时视频。
 - 特别适用于尼康（Nikon）和富士（FUJIFILM）相机，因为它们可以在延时摄影过程中自动拍摄包围曝光。本程序使用我自己的尼康 Z30 测试。

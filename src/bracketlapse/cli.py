@@ -43,6 +43,12 @@ log = Logger()
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".tif", ".tiff"}
 GENERATED_DIRECTORY_NAMES = {"hdr_enfuse", "hdr_video"}
+DEFAULT_ENFUSE_ARGS = [
+    "--exposure-width=0.05",
+    "--exposure-optimum=0.30",
+    "--saturation-weight=0",
+    "--contrast-weight=0",
+]
 
 
 class BracketlapseError(RuntimeError):
@@ -360,9 +366,9 @@ def fuse_brackets(args: argparse.Namespace) -> None:
             assert align_image_stack is not None
             with tempfile.TemporaryDirectory(prefix="bracketlapse_align_") as tmp:
                 aligned = align_group(align_image_stack, group, Path(tmp), frame_number)
-                run_command([enfuse, "-o", str(output), *map(str, aligned)])
+                run_command(build_enfuse_command(enfuse, output, aligned))
         else:
-            run_command([enfuse, "-o", str(output), *map(str, group)])
+            run_command(build_enfuse_command(enfuse, output, group))
 
     if not args.no_video:
         video_output = resolve_inside(directory, args.video_output)
@@ -478,6 +484,10 @@ def format_sequence_gap_ranges(ranges: list[tuple[int, int]]) -> str:
         f"{start}" if start == end else f"{start}-{end}"
         for start, end in ranges
     )
+
+
+def build_enfuse_command(enfuse: str, output: Path, inputs: list[Path]) -> list[str]:
+    return [enfuse, *DEFAULT_ENFUSE_ARGS, "-o", str(output), *map(str, inputs)]
 
 
 def run_standby(args: argparse.Namespace, standby_config: StandbyConfig) -> None:
