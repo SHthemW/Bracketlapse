@@ -14,7 +14,8 @@ Bracketlapse is a cross-platform command line tool for bracketed timelapse work:
   The default `enfuse` settings use `--exposure-width=0.05`, `--exposure-optimum=0.30`,
   `--saturation-weight=0`, and `--contrast-weight=0`.
 - Optionally align each bracket group with Hugin `align_image_stack`.
-- Automatically create an HEVC/H.265 MP4 timelapse from the fused frames with `ffmpeg`.
+- Deflicker the fused frame sequence with `simple-deflicker`, then create an
+  HEVC/H.265 MP4 timelapse from the deflickered frames with `ffmpeg`.
 - Especially useful for Nikon and FUJIFILM cameras, because they can automatically shoot bracketed exposures during timelapse capture. This program was tested with my own Nikon Z30.
 
 <p align="center">
@@ -29,6 +30,9 @@ It runs on Windows and macOS with Python 3.10+.
 Install these tools and make sure their `bin` directories are in `PATH`:
 
 - Hugin command line tools: `enfuse`, and optionally `align_image_stack`
+- `simple-deflicker` from the `dev_2026` branch. Build it with:
+  `git clone -b dev_2026 https://github.com/SHthemW/simple-deflicker.git`
+  and then `go build -tags cli -o simple-deflicker` inside that repository.
 - `ffmpeg`
 
 On Windows, if Hugin is installed at `D:\Medias\Hugin\bin`, add that directory to your user `PATH`.
@@ -73,7 +77,7 @@ If a folder named like `20260609` already exists, the next one becomes `20260609
 
 When the input filenames contain a numeric sequence and one or more numbers are missing, the incomplete HDR group is skipped, later groups stay aligned, and a warning is printed.
 
-If you run Bracketlapse from a directory that contains image subdirectories, which is common because camera storage formats usually enforce strict limits on the maximum number of photos in a single folder, it asks whether to merge multiple subdirectories. In merge mode, the selected subdirectories are used as input, while `hdr_enfuse` and `hdr_video` are still created in the current working directory.
+If you run Bracketlapse from a directory that contains image subdirectories, which is common because camera storage formats usually enforce strict limits on the maximum number of photos in a single folder, it asks whether to merge multiple subdirectories. In merge mode, the selected subdirectories are used as input, while `hdr_enfuse`, `hdr_deflick`, and `hdr_video` are still created in the current working directory.
 
 <p align="center">
   <img src="res/multi_folders.png" alt="Multiple image folders" width="66%">
@@ -107,7 +111,8 @@ DSC_0483.JPG, DSC_0484.JPG, DSC_0485.JPG -> hdr_00002.jpg
 If the total number of input files is not divisible by the group size, Bracketlapse drops the final leftover file(s), prints a warning, and continues processing the complete groups.
 
 The default fused-frame output directory is `hdr_enfuse` inside the processing directory.
-The default video output is `hdr_video/hdr_timelapse.mp4` inside the processing directory. Videos are encoded as HEVC/H.265.
+The default deflickered-frame output directory is `hdr_deflick` inside the processing directory.
+The final video is created from `hdr_deflick` at `hdr_video/hdr_timelapse.mp4`. Videos are encoded as HEVC/H.265.
 
 Use alignment when the camera moved between the bracketed shots:
 
@@ -121,7 +126,7 @@ Test only the first few groups:
 bracketlapse "E:\Medias\Images\example" --limit 3 --overwrite
 ```
 
-Only create fused frames and skip the automatic video:
+Only create fused frames and skip deflicker and automatic video creation:
 
 ```bash
 bracketlapse "E:\Medias\Images\example" --no-video
@@ -133,13 +138,17 @@ Choose video settings for the automatic video:
 bracketlapse "E:\Medias\Images\example" --fps 30 --video-output hdr_video\hdr_timelapse.mp4
 ```
 
-Also create a deflickered copy next to the normal video:
+Choose simple-deflicker settings:
 
 ```bash
-bracketlapse "E:\Medias\Images\example" --smooth-exposure
+bracketlapse "E:\Medias\Images\example" --deflick-rolling-average 15 --deflick-jpeg-compression 95
 ```
 
-That writes `hdr_timelapse.mp4` and `hdr_timelapse_deflick.mp4`.
+If the executable is not named `simple-deflicker` or is not in `PATH`, pass it explicitly:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --deflick-bin "D:\Tools\simple-deflicker.exe"
+```
 
 Create a video manually from an existing JPG frame directory:
 
@@ -170,10 +179,12 @@ Important options:
 - `--overwrite`: replace existing output.
 - `--align`: align bracket groups before exposure fusion.
 - `--ext jpg|tif`: choose fused frame extension.
-- `--no-video`: skip automatic video creation after fusion.
+- `--no-video`: skip deflicker and automatic video creation after fusion.
 - `--fps`: video frames per second.
 - `--video-output PATH`: automatic video output path.
-- `--smooth-exposure`: also create a deflickered sibling video.
+- `--deflick-output PATH`: deflickered frame output directory.
+- `--deflick-bin PATH`: simple-deflicker executable name or path.
+- `--deflick-rolling-average`, `--deflick-jpeg-compression`, and `--deflick-threads`: simple-deflicker settings.
 - `--crf` and `--preset`: x265 quality and speed settings for video encoding.
 
 ## License
