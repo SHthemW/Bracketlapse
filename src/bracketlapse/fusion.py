@@ -32,7 +32,6 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     directory = resolve_fuse_working_directory(args)
     output_dir = resolve_inside(directory, args.output)
     deflick_output_dir = resolve_inside(directory, args.deflick_output)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.no_video:
         ensure_deflick_supported_extension(args.ext)
@@ -40,6 +39,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     enfuse = require_tool("enfuse")
     align_image_stack = require_tool("align_image_stack") if args.align else None
     video_output = resolve_inside(directory, args.video_output)
+    output_dir.mkdir(parents=True, exist_ok=True)
     source_dirs = resolve_source_directories(
         directory=directory,
         output_dir=output_dir,
