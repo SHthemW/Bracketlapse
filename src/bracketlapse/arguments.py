@@ -87,7 +87,12 @@ def add_fusion_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--no-video",
         action="store_true",
-        help="Only create fused frames; skip deflicker and video creation.",
+        help="Skip automatic video creation after fusion and deflicker.",
+    )
+    parser.add_argument(
+        "--no-deflick",
+        action="store_true",
+        help="Skip simple-deflicker processing and use fused frames directly.",
     )
 
 

@@ -21,18 +21,17 @@ def ensure_runtime_environment(args: argparse.Namespace, command: str) -> None:
         ensure_system_tool("ffmpeg")
         return
 
-    if not args.no_video:
+    if not args.no_deflick:
         ensure_deflick_supported_extension(args.ext)
 
     log.info("Checking runtime environment.")
     ensure_system_tool("enfuse")
     if args.align:
         ensure_system_tool("align_image_stack")
-    if args.no_video:
-        return
-
-    ensure_system_tool("ffmpeg")
-    args.deflick_bin = str(ensure_simple_deflicker(args.deflick_bin))
+    if not args.no_video:
+        ensure_system_tool("ffmpeg")
+    if not args.no_deflick:
+        args.deflick_bin = str(ensure_simple_deflicker(args.deflick_bin))
 
 
 def ensure_system_tool(name: str) -> str:

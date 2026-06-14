@@ -14,18 +14,12 @@ from .common import (
     run_command,
 )
 from .deflicker import deflick_frames, ensure_deflick_supported_extension
+from .enfuse import align_group, build_enfuse_command
 from .grouping import build_fusion_groups, detect_sequence_gap_ranges
 from .grouping import format_sequence_gap_ranges
 from .images import find_images, find_images_in_directories, find_merge_candidates
 from .images import resolve_source_directories
 from .video import build_video_from_directory
-
-DEFAULT_ENFUSE_ARGS = [
-    "--exposure-width=0.05",
-    "--exposure-optimum=0.30",
-    "--saturation-weight=0",
-    "--contrast-weight=0",
-]
 
 
 def fuse_brackets(args: argparse.Namespace) -> None:
@@ -33,7 +27,7 @@ def fuse_brackets(args: argparse.Namespace) -> None:
     output_dir = resolve_inside(directory, args.output)
     deflick_output_dir = resolve_inside(directory, args.deflick_output)
 
-    if not args.no_video:
+    if not args.no_deflick:
         ensure_deflick_supported_extension(args.ext)
 
     enfuse = require_tool("enfuse")
@@ -87,8 +81,10 @@ def fuse_brackets(args: argparse.Namespace) -> None:
         else:
             run_command(build_enfuse_command(enfuse, output, group))
 
-    if not args.no_video:
-        log.info("Deflickering fused frames before creating the final video.")
+    video_source_dir = output_dir
+    video_pattern = f"*.{args.ext}"
+    if not args.no_deflick:
+        log.info("Deflickering fused frames.")
         deflick_frames(
             source_dir=output_dir,
             output_dir=deflick_output_dir,
@@ -98,12 +94,16 @@ def fuse_brackets(args: argparse.Namespace) -> None:
             jpeg_compression=args.deflick_jpeg_compression,
             threads=args.deflick_threads,
         )
-        log.info("Creating video from deflickered frames.")
+        video_source_dir = deflick_output_dir
+        video_pattern = "*.jp*g"
+
+    if not args.no_video:
+        log.info(f"Creating video from {video_source_dir.name} frames.")
         build_video_from_directory(
-            directory=deflick_output_dir,
+            directory=video_source_dir,
             output=video_output,
             fps=args.fps,
-            pattern="*.jp*g",
+            pattern=video_pattern,
             sort_mode="name",
             crf=args.crf,
             preset=args.preset,
@@ -173,23 +173,3 @@ def resolve_fuse_working_directory(args: argparse.Namespace) -> Path:
 
 def is_current_directory_argument(value: Path) -> bool:
     return value.expanduser().resolve() == Path.cwd().resolve()
-
-
-def build_enfuse_command(enfuse: str, output: Path, inputs: list[Path]) -> list[str]:
-    return [enfuse, *DEFAULT_ENFUSE_ARGS, "-o", str(output), *map(str, inputs)]
-
-
-def align_group(
-    align_image_stack: str,
-    group: list[Path],
-    temp_dir: Path,
-    frame_number: int,
-) -> list[Path]:
-    prefix = temp_dir / f"aligned_{frame_number:05d}_"
-    run_command([align_image_stack, "-m", "-a", str(prefix), *map(str, group)])
-    aligned = sorted(temp_dir.glob(f"aligned_{frame_number:05d}_*.tif"))
-    if len(aligned) != len(group):
-        raise BracketlapseError(
-            f"align_image_stack produced {len(aligned)} file(s), expected {len(group)}."
-        )
-    return aligned

@@ -100,18 +100,35 @@ def test_fuse_pipeline_deflickers_before_video(tmp_path: Path) -> None:
     assert (work_dir / "hdr_video" / "hdr_timelapse.mp4").read_text(encoding="utf-8") == "video\n"
 
 
-def test_no_video_skips_deflicker_and_ffmpeg(tmp_path: Path) -> None:
+def test_no_video_still_deflickers_by_default(tmp_path: Path) -> None:
     bin_dir = tmp_path / "bin"
     work_dir = tmp_path / "work"
-    create_mock_tools(bin_dir, include_deflicker=False)
+    create_mock_tools(bin_dir)
     create_input_frames(work_dir, 3)
 
     result = run_bracketlapse([str(work_dir), "--no-merge-subdirs", "--no-video"], bin_dir)
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert (work_dir / "hdr_enfuse" / "hdr_00001.jpg").exists()
-    assert not (work_dir / "hdr_deflick").exists()
+    assert (work_dir / "hdr_deflick" / "hdr_00001.jpg").exists()
     assert not (work_dir / "hdr_video").exists()
+
+
+def test_no_deflick_uses_fused_frames_for_video(tmp_path: Path) -> None:
+    bin_dir = tmp_path / "bin"
+    work_dir = tmp_path / "work"
+    create_mock_tools(bin_dir, include_deflicker=False)
+    create_input_frames(work_dir, 3)
+
+    result = run_bracketlapse(
+        [str(work_dir), "--no-merge-subdirs", "--no-deflick", "--overwrite"],
+        bin_dir,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (work_dir / "hdr_enfuse" / "hdr_00001.jpg").exists()
+    assert not (work_dir / "hdr_deflick").exists()
+    assert (work_dir / "hdr_video" / "hdr_timelapse.mp4").exists()
 
 
 def test_video_command_only_requires_ffmpeg(tmp_path: Path) -> None:
@@ -134,6 +151,13 @@ def test_fuse_failure_does_not_create_output_frame(tmp_path: Path) -> None:
     bin_dir = tmp_path / "bin"
     work_dir = tmp_path / "work"
     bin_dir.mkdir()
+    write_executable(
+        bin_dir / "enfuse",
+        """#!/bin/sh
+printf "enfuse failed\\n" >&2
+exit 1
+""",
+    )
     create_input_frames(work_dir, 3)
 
     result = run_bracketlapse([str(work_dir), "--no-merge-subdirs", "--no-video"], bin_dir)

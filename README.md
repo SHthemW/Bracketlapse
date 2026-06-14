@@ -134,10 +134,16 @@ Test only the first few groups:
 bracketlapse "E:\Medias\Images\example" --limit 3 --overwrite
 ```
 
-Only create fused frames and skip deflicker and automatic video creation:
+Run fusion and deflicker, but skip automatic video creation:
 
 ```bash
 bracketlapse "E:\Medias\Images\example" --no-video
+```
+
+Skip deflicker and create the video from fused frames directly:
+
+```bash
+bracketlapse "E:\Medias\Images\example" --no-deflick
 ```
 
 Choose video settings for the automatic video:
@@ -187,7 +193,8 @@ Important options:
 - `--overwrite`: replace existing output.
 - `--align`: align bracket groups before exposure fusion.
 - `--ext jpg|tif`: choose fused frame extension.
-- `--no-video`: skip deflicker and automatic video creation after fusion.
+- `--no-video`: skip automatic video creation after fusion and deflicker.
+- `--no-deflick`: skip simple-deflicker processing and use fused frames directly.
 - `--fps`: video frames per second.
 - `--video-output PATH`: automatic video output path.
 - `--deflick-output PATH`: deflickered frame output directory.

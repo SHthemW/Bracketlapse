@@ -129,10 +129,16 @@ bracketlapse "E:\Medias\Images\example" --align
 bracketlapse "E:\Medias\Images\example" --limit 3 --overwrite
 ```
 
-只生成 HDR 图片，跳过去闪和自动视频合成：
+执行 HDR 合成和去闪，但跳过自动视频合成：
 
 ```bash
 bracketlapse "E:\Medias\Images\example" --no-video
+```
+
+跳过去闪，直接使用 HDR 合成图片生成视频：
+
+```bash
+bracketlapse "E:\Medias\Images\example" --no-deflick
 ```
 
 指定自动视频参数：
@@ -182,7 +188,8 @@ bracketlapse video --help
 - `--overwrite`：覆盖已有输出。
 - `--align`：合成前先对齐每组包围曝光照片。
 - `--ext jpg|tif`：选择 HDR 图片输出扩展名。
-- `--no-video`：HDR 图片合成后跳过去闪和自动视频生成。
+- `--no-video`：HDR 图片合成和去闪后跳过自动视频生成。
+- `--no-deflick`：跳过 simple-deflicker，直接使用 HDR 合成图片。
 - `--fps`：视频帧率。
 - `--video-output PATH`：自动生成视频的输出路径。
 - `--deflick-output PATH`：去闪图片输出目录。
