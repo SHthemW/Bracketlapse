@@ -1,83 +1,29 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
-import subprocess
-import sys
+
+from helpers import create_input_frames, create_mock_tools, run_bracketlapse
+from helpers import write_executable
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+def test_no_arguments_prints_main_help(tmp_path: Path) -> None:
+    result = run_bracketlapse([], tmp_path / "bin")
+
+    assert result.returncode == 0
+    assert "usage: bracketlapse" in result.stdout
+    assert "--deflick-output" in result.stdout
+    assert "--debug" in result.stdout
+    assert "Checking runtime environment" not in result.stdout
 
 
-def run_bracketlapse(args: list[str], bin_dir: Path) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
-    env["PYTHONPATH"] = str(PROJECT_ROOT / "src")
-    return subprocess.run(
-        [sys.executable, "-m", "bracketlapse.cli", *args],
-        cwd=PROJECT_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-    )
+def test_video_without_arguments_prints_video_help(tmp_path: Path) -> None:
+    result = run_bracketlapse(["video"], tmp_path / "bin")
 
-
-def write_executable(path: Path, content: str) -> None:
-    path.write_text(content, encoding="utf-8")
-    path.chmod(0o755)
-
-
-def create_mock_tools(bin_dir: Path, *, include_deflicker: bool = True) -> None:
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    write_executable(
-        bin_dir / "enfuse",
-        """#!/bin/sh
-out=
-while [ "$#" -gt 0 ]; do
-  if [ "$1" = "-o" ]; then
-    shift
-    out="$1"
-  fi
-  shift
-done
-mkdir -p "$(dirname "$out")"
-printf "mock enfuse debug\\n"
-printf "fused\\n" > "$out"
-""",
-    )
-    write_executable(
-        bin_dir / "ffmpeg",
-        """#!/bin/sh
-for last do true; done
-mkdir -p "$(dirname "$last")"
-printf "mock ffmpeg debug\\n"
-printf "video\\n" > "$last"
-""",
-    )
-    if include_deflicker:
-        write_executable(
-            bin_dir / "simple-deflicker",
-            """#!/bin/sh
-src=
-dst=
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    -source) shift; src="$1" ;;
-    -destination) shift; dst="$1" ;;
-  esac
-  shift
-done
-mkdir -p "$dst"
-printf "mock deflicker debug\\n"
-cp "$src"/*.jpg "$dst"/
-""",
-        )
-
-
-def create_input_frames(directory: Path, count: int) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
-    for number in range(1, count + 1):
-        (directory / f"{number:04d}.jpg").write_text(f"input {number}\n", encoding="utf-8")
+    assert result.returncode == 0
+    assert "usage: bracketlapse video" in result.stdout
+    assert "--output" in result.stdout
+    assert "--debug" in result.stdout
+    assert "Checking runtime environment" not in result.stdout
 
 
 def test_fuse_pipeline_deflickers_before_video(tmp_path: Path) -> None:

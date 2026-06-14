@@ -15,6 +15,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         standby_config, normalized_argv = extract_standby_config(argv)
         parser = build_parser(normalized_argv)
+        if should_print_help(normalized_argv):
+            parser.print_help()
+            return 0
         args = parser.parse_args(
             normalized_argv[1:] if normalized_argv[:1] == ["video"] else normalized_argv
         )
@@ -39,6 +42,12 @@ def main(argv: list[str] | None = None) -> int:
         return 130
 
     return 0
+
+
+def should_print_help(argv: list[str]) -> bool:
+    if any(token in {"-h", "--help"} for token in argv):
+        return False
+    return not argv or argv == ["video"]
 
 
 if __name__ == "__main__":
